@@ -1,36 +1,36 @@
 ﻿using ClosedXML.Excel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Spreadsheet;
-using DocumentFormat.OpenXml.Office2016.Excel;
-using DocumentFormat.OpenXml.Bibliography;
-using System.Globalization;
+
 
 namespace CladN
 {
     class DataProcessor
     {
-        private string _filePath;
         private XLWorkbook _workbook;
-        public List<Product> productList = new List<Product>();
-        public List<Client> clientList = new List<Client>();
-        public List<Request> requestList = new List<Request>();
+        public List<Product> productList;
+        public List<Client> clientList;
+        public List<Request> requestList;
         dynamic Number;
 
 
         public DataProcessor(string filePath)
         {
-            _filePath = filePath;
             _workbook = new XLWorkbook(filePath);
+            InitialiseOrUpdate();
         }
+
         public void SaveFile()
         {
             _workbook.Save();
         }
+
+        public void InitialiseOrUpdate()
+        {
+            GetProducts(_workbook.Worksheet(1));
+            GetClients(_workbook.Worksheet(2));
+            GetRequests(_workbook.Worksheet(3));
+        }
+
+        #region получение и запись данных для Товаров, Клиентов, Запросов в соответствующие List<objectName>
         public void GetProducts(IXLWorksheet productWorksheet)
         {
             productList = new List<Product>();
@@ -45,6 +45,7 @@ namespace CladN
                     price: row.Cell(4).Value.IsNumber ? row.Cell(4).Value.GetNumber() : 0));
             }
         }
+
         public void GetClients(IXLWorksheet clientWorksheet)
         {
             clientList = new List<Client>();
@@ -59,6 +60,7 @@ namespace CladN
                     personName: row.Cell(4).Value.ToString()));
             }
         }
+
         public void GetRequests(IXLWorksheet requestWorksheet)
         {
             requestList = new List<Request>();
@@ -75,27 +77,38 @@ namespace CladN
                     datePost: row.Cell(6).Value.IsDateTime ? row.Cell(6).Value.GetDateTime() : new DateTime()));
             }
         }
+        #endregion
+
+        /// <summary>
+        /// Получение клиента по его имени
+        /// </summary>
+        /// <param name="clientName"></param>
+        /// <returns></returns>
         public Client GetClientByName(string clientName)
         {
-            GetClients(_workbook.Worksheet(2));
             return clientList.FirstOrDefault(p => p.Name.ToUpper() == clientName.ToUpper());
         }
+        /// <summary>
+        /// Получение продукта по его имени
+        /// </summary>
+        /// <param name="productName"></param>
+        /// <returns></returns>
         public Product GeProductByName(string productName)
         {
-            GetProducts(_workbook.Worksheet(1));
             return productList.FirstOrDefault(p => p.Name.ToUpper() == productName.ToUpper());
         }
+
+        /// <summary>
+        /// Отображение данных Клиентов, Заявок и Продукта по имени продукта
+        /// </summary>
+        /// <param name="productName"></param>
         public void DisplayCustomersByProduct(string productName)
         {
-            GetClients(_workbook.Worksheet(2));
-            GetRequests(_workbook.Worksheet(3));
-
-
             var product = GeProductByName(productName);
-            var re = requestList.Where(r => r.CodeProduct == product?.Code);
+            var reuests = requestList.Where(r => r.CodeProduct == product?.Code);
             clientList.ForEach(c =>
             {
-                foreach (var r in re)
+                foreach (var r in reuests)
                 {
                     if (r?.CodeClient == c.Code)
                     {
@@ -105,33 +118,26 @@ namespace CladN
 
             });
         }
-
+        /// <summary>
+        /// Изменение контактного лица клиента по имени клиента
+        /// </summary>
+        /// <param name="organizationName"></param>
+        /// <param name="newContactPerson"></param>
         public void ChangeContactPerson(string organizationName, string newContactPerson)
         {
             GetClientByName(organizationName)?.SetPersonName(personName: newContactPerson, _workbook.Worksheet(2));
             SaveFile();
             Console.WriteLine("Успешно изменено");
         }
-
+        /// <summary>
+        /// Отображение золотого клиента(больше всего заказов в указанный год, месяц, среди прочих клиентов)
+        /// </summary>
+        /// <param name="year"></param>
+        /// <param name="month"></param>
         public void DisplayGoldenCustomer(int year, int month)
         {
-            GetClients(_workbook.Worksheet(2));
-            GetRequests(_workbook.Worksheet(3));
-
             var requestsByDate = requestList.Where(p => p.DatePost.Month == month && p.DatePost.Year == year);
 
-            //clientList.Where(c =>
-            //{
-            //    foreach (var r in requestsByDate)
-            //    {
-            //        if (r.CodeClient == c.Code)
-            //        {
-            //            return true;
-            //        }
-            //    }
-            //    return false;
-            //
-            //});
             var orderCounts = requestsByDate.GroupBy(order => order.CodeClient).ToDictionary(group => group.Key, group => group.Count());
 
             int maxOrderClientCode = orderCounts.FirstOrDefault(x => x.Value == orderCounts.Values.Max()).Key;

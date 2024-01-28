@@ -1,21 +1,13 @@
 ﻿using ClosedXML.Excel;
-using DocumentFormat.OpenXml.EMMA;
-using DocumentFormat.OpenXml.Office2010.Excel;
-using DocumentFormat.OpenXml.Spreadsheet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CladN
 {
-    internal class Client
+    public class Client
     {
         public int RowNumber;
-        public int Code { get; set; }
-        public string Name { get; set; }
-        public string Adress { get; set; }
+        public int Code {get;}
+        public string Name {get;}
+        public string Adress {get;}
         public string PersonName { get; set; }
 
         public readonly int Id;
@@ -34,7 +26,6 @@ namespace CladN
         public void SetPersonName(string personName, IXLWorksheet workSheet)
         {
             workSheet.Cell(Id, "D").Value = personName;
-            //workSheet.Row(Id).Cell(5).InsertData(personName);
             workSheet.Columns().AdjustToContents();
             PersonName = personName;
         }

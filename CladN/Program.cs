@@ -57,7 +57,7 @@ class Program
     static string RequestFilePath()
     {
         Console.Write("Введите путь до файла с данными: ");
-        return "I:\\Windows\\Downloads\\1.xlsx"; //Console.ReadLine();
+        return Console.ReadLine();
     }
 
     static int GetIntInput()
