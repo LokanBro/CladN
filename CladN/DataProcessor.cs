@@ -6,10 +6,9 @@ namespace CladN
     class DataProcessor
     {
         private XLWorkbook _workbook;
-        public List<Product> productList;
+        public HashSet<Product> productList;
         public List<Client> clientList;
         public List<Request> requestList;
-        dynamic Number;
 
 
         public DataProcessor(string filePath)
@@ -30,10 +29,10 @@ namespace CladN
             GetRequests(_workbook.Worksheet(3));
         }
 
-        #region получение и запись данных для Товаров, Клиентов, Запросов в соответствующие List<objectName>
+        #region получение и запись данных для Товаров, Клиентов, Запросов в соответствующие коллекции
         public void GetProducts(IXLWorksheet productWorksheet)
         {
-            productList = new List<Product>();
+            productList = new HashSet<Product>();
             var rows = productWorksheet.RangeUsed().RowsUsed();
             foreach (var row in rows)
             {
@@ -67,11 +66,13 @@ namespace CladN
             var rows = requestWorksheet.RangeUsed().RowsUsed();
             foreach (var row in rows)
             {
+                var product = productList?.FirstOrDefault(p => p.Code == (row.Cell(2).Value.IsNumber ? row.Cell(2).Value.GetNumber() : 0));
+                var client = clientList?.FirstOrDefault(p => p.Code == (row.Cell(3).Value.IsNumber ? row.Cell(3).Value.GetNumber() : 0));
                 requestList.Add(new Request(
                     id: row.RowNumber(),
                     code: int.TryParse(row.Cell(1).Value.ToString(), out int c) ? c : 0,
-                    codeProduct: int.TryParse(row.Cell(2).Value.ToString(), out int cP) ? cP : 0,
-                    codeClient: int.TryParse(row.Cell(3).Value.ToString(), out int cC) ? cC : 0,              //row.Cell(6).Value.IsNumber ? row.Cell(6).Value.GetNumber(): 0
+                    product: product,
+                    client: client,
                     requestNubmer: int.TryParse(row.Cell(4).Value.ToString(), out int rN) ? rN : 0,
                     countNeeded: int.TryParse(row.Cell(5).Value.ToString(), out int cN) ? cN : 0,
                     datePost: row.Cell(6).Value.IsDateTime ? row.Cell(6).Value.GetDateTime() : new DateTime()));
@@ -105,18 +106,8 @@ namespace CladN
         public void DisplayCustomersByProduct(string productName)
         {
             var product = GeProductByName(productName);
-            var reuests = requestList.Where(r => r.CodeProduct == product?.Code);
-            clientList.ForEach(c =>
-            {
-                foreach (var r in reuests)
-                {
-                    if (r?.CodeClient == c.Code)
-                    {
-                        Console.WriteLine($"Информация о заказчике: {c.GetInfo()}\n Дата заказа: {r.DatePost} Кол-во: {r.CountNeeded} Цена за шт.: {product.Price}");
-                    }
-                }
-
-            });
+            var requests = requestList.Where(r => r.Product == product).ToList();
+            requests.ForEach(r => Console.WriteLine($"Информация о заказчике: {r.Client.GetInfo()}\n Дата заказа: {r.DatePost} Кол-во: {r.CountNeeded} Цена за шт.: {product.Price}"));
         }
         /// <summary>
         /// Изменение контактного лица клиента по имени клиента
@@ -136,14 +127,17 @@ namespace CladN
         /// <param name="month"></param>
         public void DisplayGoldenCustomer(int year, int month)
         {
-            var requestsByDate = requestList.Where(p => p.DatePost.Month == month && p.DatePost.Year == year);
+            var requestsByDate = requestList
+                .Where(p => p.DatePost.Month == month && p.DatePost.Year == year);
 
-            var orderCounts = requestsByDate.GroupBy(order => order.CodeClient).ToDictionary(group => group.Key, group => group.Count());
-
-            int maxOrderClientCode = orderCounts.FirstOrDefault(x => x.Value == orderCounts.Values.Max()).Key;
-
-            Client maxOrderClient = clientList.FirstOrDefault(cliente => cliente.Code == maxOrderClientCode);
-            Console.WriteLine(maxOrderClient.Name);
+            var goldenClient = requestsByDate.GroupBy(r => r.Client)
+                .Select(g => new { Client = g.Key, RequestCount = g.Count() })
+                .OrderByDescending(t => t.RequestCount)
+                .FirstOrDefault()?.Client;
+            if (goldenClient != null)
+                Console.WriteLine(goldenClient.Name);
+            else
+                Console.WriteLine("Золотой клиент не найден");
 
         }
     }

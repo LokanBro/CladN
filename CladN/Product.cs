@@ -18,5 +18,17 @@ namespace CladN
             Unit = unit;
             Price = price;
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != typeof(Product)) return false;
+            return Equals((Product)obj);
+        }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
     }
 }
